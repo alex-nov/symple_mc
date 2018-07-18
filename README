@@ -1,0 +1,5 @@
+compile gcc main.c -lncurses
+
+Buttons 'UP' and 'DOWN' to navigate on left side
+Button 'RIGHT' to enter into the directory
+Buutton 'q' to exit from app
