@@ -6,7 +6,7 @@
 
 #define NAME_LEGHT 255
 
-char directory[255] = "/";
+char directory[NAME_LEGHT] = "/";
 
 long int count_files=0, current = 0;
 char **file_names;
@@ -16,23 +16,24 @@ unsigned char *file_types;
 
 int create_filelist()
 {
-    int i = 0;
+    int i=0, count = 0;
     struct dirent *ent;
-    
-    while ((ent=readdir(dir)) != false) 
-    {
-            ++count_files;
-    }
-    rewinddir(dir);
     
     if(file_names != NULL)
     {
         clear_memory();        
     }
     
-    file_names = (char**)malloc(sizeof(char*) * count_files);
-    file_types = (unsigned char*)malloc(sizeof(unsigned char) * count_files);
-    for(i=0; i< count_files; ++i)
+    while ((ent=readdir(dir)) != false) 
+    {
+            ++count;
+    }
+    rewinddir(dir);    
+    
+    
+    file_names = (char**)malloc(sizeof(char*) * count);
+    file_types = (unsigned char*)malloc(sizeof(unsigned char) * count);
+    for(i=0; i< count; ++i)
     {
         file_names[i] = (char*)malloc(sizeof(char) * NAME_LEGHT);
     }
@@ -47,7 +48,7 @@ int create_filelist()
     }
     rewinddir(dir);
     
-    return i;
+    return count;
 }
 
 void clear_memory()
@@ -66,8 +67,9 @@ void clear_memory()
 int main()
 {
     
-    int i = 0;
+    int i = 0, slash=0;
     bool prog_exit = false;
+    char new_folder[NAME_LEGHT]; 
     
 
     struct dirent *ent;
@@ -89,7 +91,7 @@ int main()
     {
         clear();
    
-        mvprintw(0, 0 ,"%d\n", current);
+        mvprintw(0, 0 ,"%d  %s\n", current,directory);
         for(i=0; i<count_files; ++i)
         {
             if(current == i)
@@ -104,18 +106,62 @@ int main()
         
             attroff(A_BOLD);
         }
-        refresh();                   // Вывод приветствия на настоящий экран
+        refresh();                   // Вывод списка текущего каталога на настоящий экран
         
         switch ( getch() )
         {
             case KEY_UP:
+                
                 if ( current ) //Если возможно, переводим указатель вверх
                     --current; 
                 break;
+                
             case KEY_DOWN:
+                
                 if ( current < count_files-1 ) //Если возможно, переводим указатель вниз
                     ++current;
                 break;
+                
+            case KEY_RIGHT:
+                
+                // Если тип - директория и это не . - переходим в нее
+                if(file_types[current] == DT_DIR && strcmp(file_names[current],".") != 0 )
+                {
+                    memset(new_folder, 0, NAME_LEGHT );
+                    if(strcmp(file_names[current],"..") == 0 ) // Если это .. - сокращаем строку директории
+                    {
+                        for(slash=0, i=0; i<strlen(directory); ++i)
+                        {
+                            if(directory[i] == '/') slash = i;
+                        }
+                        if(slash == 0) ++slash;
+                        
+                        strncpy(new_folder, directory, slash);
+                    }
+                    else // Иначе добавляем к текущему пути выбранную папку
+                    {
+                        strcat(new_folder, directory);
+                        if(strcmp(directory, "/") ) strcat(new_folder, "/");
+                        strcat(new_folder, file_names[current]);
+                    }
+                    
+                    closedir(dir);
+                    dir = opendir(new_folder);          // Открываем новый каталог
+                    if(!dir) // Если не можем войти в директорию, остаемся в текущем
+                    {
+                        dir = opendir(directory);
+                    }
+                    else
+                    {
+                        count_files = create_filelist();    // Заново создаем список файлов
+                        current = 0;
+                    
+                        memset(directory, 0, NAME_LEGHT );
+                        strcpy(directory, new_folder);
+                    }
+                }
+                break;
+                
             case 'q':
                 prog_exit = true;
                 break;
@@ -128,8 +174,7 @@ int main()
     
     clear_memory();
     
-    closedir(dir);
-    getch();                     // Ожидание нажатия какой-либо клавиши пользователем
+    closedir(dir);               // Закрываем последний используемый каталог
     endwin();                    // Выход из curses-режима. Обязательная команда.
     
     
